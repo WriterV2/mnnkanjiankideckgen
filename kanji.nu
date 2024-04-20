@@ -1,28 +1,28 @@
-def kanjicomponents [kanji: string] -> list {
-    sleep 3sec
-    try {
-        [$kanji] | prepend (http get (['https://jisho.org/search/','%23kanji'] | str join $kanji) | query web --query '.dictionary_entry.on_yomi dd, .dictionary_entry.on_yomi dt' | str trim | group 2 | where { |x| $x.0.0 == 'Parts:' } | get 0.1 | compact --empty)
-    }
-}
-
 def kanjibreakdown [kanji: string] -> list {
-    mut l = (kanjicomponents $kanji)
+    const qprefix = '.col-lg-6 > .kanjiItem'
+    const qmid    = ' > .kanjiBreakdownIndent > .kanjiItem'
+    const qsuffix = ' > div > a'
+    let url = ('https://www.kakimashou.com/dictionary/character/' + $kanji)
+
+    mut result = [(http get $url | query web --query ($qprefix + $qsuffix) | flatten)]
 
     mut run = true
-    while $run {
-        mut stop = true
-        for k in $l {
-            let kl = (kanjicomponents $k)
-            for letter in $kl {
-                if ($letter not-in $l) and ($letter | is-not-empty) { 
-                    $l = ($l | prepend $letter) 
-                    $stop = false
-                }
-            }
-        }
-        if $stop { $run = false }
-    }
-    $l
-}
+    mut counter = 1
 
-# TODO: Try with kakimashou.com for potentially better and more direct kanji breakdowns and compare
+    while $run {
+        mut query = $qprefix
+        for i in 1..$counter {
+            $query = ($query + $qmid)
+        }
+        $query = ($query + $qsuffix)
+        let parts = (http get $url | query web --query $query | flatten)
+        if ($parts | length) == 0 {
+            $run = false 
+        } else {
+            $result = ($result | prepend $parts | flatten) 
+        }
+        $counter = $counter + 1
+    }
+
+    $result
+}
