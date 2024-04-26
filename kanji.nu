@@ -78,13 +78,15 @@ def is-kanji [kanji: string] -> boolean {
 
 def get-kanji-from-vocab [csv_filename: string] -> list<string> {
     mut result = []
+    mut checked_chars = []
     log ("Extracting Kanji from " + $csv_filename)
     for vocab in (open $csv_filename| flatten) {
         for character in ($vocab.column0 | split chars -g) {
-            if (($character not-in $result) and (is-kanji $character)) {
+            if (($character not-in ($result | append $checked_chars)) and (is-kanji $character)) {
                 $result = ($result | append $character)
                 log ("-> extracted Kanji: " + $character)
             }
+            $checked_chars = ($checked_chars | append $character)
         }
     }
     log $"Extracting Kanji...(ansi g)done(ansi reset)\n"
